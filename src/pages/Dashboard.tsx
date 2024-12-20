@@ -12,6 +12,7 @@ import {
   deleteDoc
 } from "firebase/firestore";
 import { generateDerangement } from "../utils/derangement";
+import { signOut } from "firebase/auth";
 
 interface Lottery {
   id: string;
@@ -30,7 +31,7 @@ function Dashboard() {
   const [lotteries, setLotteries] = useState<Lottery[]>([]);
   const [selectedDraftLotteryId, setSelectedDraftLotteryId] = useState<string | null>(null);
 
-  // Fields for creating a new draft lottery manually
+  // Fields for creating a new draft lottery
   const [newLotteryYear, setNewLotteryYear] = useState<number>(new Date().getFullYear());
   const [newLotteryName, setNewLotteryName] = useState("");
 
@@ -239,6 +240,21 @@ function Dashboard() {
     fetchLotteries();
   }
 
+  async function handleRemoveParticipant(participant: string) {
+    if (!selectedDraftLotteryId || !user) return;
+
+    const draftLottery = lotteries.find(l => l.id === selectedDraftLotteryId && l.status === "draft");
+    if (!draftLottery) return;
+
+    const updatedParticipants = draftLottery.participants.filter(p => p !== participant);
+
+    await updateDoc(doc(db, "lotteries", selectedDraftLotteryId), {
+      participants: updatedParticipants
+    });
+
+    fetchLotteries();
+  }
+
   const draftLotteries = lotteries.filter(l => l.status === "draft");
   let publishedLotteries = lotteries.filter(l => l.status === "published");
 
@@ -262,10 +278,17 @@ function Dashboard() {
 
   const selectedDraft = draftLotteries.find(l => l.id === selectedDraftLotteryId);
 
+  // Logout function
+  async function handleLogout() {
+    await signOut(auth);
+    window.location.href = "/signin";
+  }
+
   return (
     <div>
       <h1>Dashboard</h1>
       <p>Logged in as {user?.email}</p>
+      <button onClick={handleLogout}>Logout</button>
 
       <h2>Create a Lottery</h2>
       {!selectedDraftLotteryId && !copySourceLottery && (
@@ -355,7 +378,10 @@ function Dashboard() {
           <h4>Participants</h4>
           <ul>
             {selectedDraft.participants.map((p, i) => (
-              <li key={i}>{p}</li>
+              <li key={i}>
+                {p}{" "}
+                <button onClick={() => handleRemoveParticipant(p)}>Remove</button>
+              </li>
             ))}
             <li>
               <input
