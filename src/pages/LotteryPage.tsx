@@ -1,7 +1,8 @@
+// src/pages/LotteryPage.tsx
 import { useEffect, useState, FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { db } from "../firebase";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { db } from "../firebase";
 
 interface LotteryData {
   ownerUserId: string;
@@ -11,35 +12,40 @@ interface LotteryData {
   year: number;
   name: string;
   revealedParticipants?: string[];
+  createdAt?: any; 
 }
 
 function LotteryPage() {
-  const { publicId } = useParams<{ publicId: string }>();
+  const { id } = useParams<{ id: string }>();
   const [lottery, setLottery] = useState<LotteryData | null>(null);
   const [name, setName] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchLottery() {
-      if (!publicId) return;
-      const ref = doc(db, "lotteries", publicId);
+      if (!id) return;
+      setLoading(true);
+      const ref = doc(db, "lotteries", id);
       const snapshot = await getDoc(ref);
       if (snapshot.exists()) {
         setLottery(snapshot.data() as LotteryData);
       } else {
         setError("Lottery not found.");
       }
+      setLoading(false);
     }
     fetchLottery();
-  }, [publicId]);
+  }, [id]);
 
   async function handleCheck(e: FormEvent) {
     e.preventDefault();
-    if (!lottery) return;
+    if (!lottery || !id) return;
 
     if (lottery.status === "draft") {
-      setError("This lottery is not yet published.");
+      setError("This lottery is not yet published. Please check back later.");
+      setResult(null);
       return;
     }
 
@@ -64,28 +70,29 @@ function LotteryPage() {
     setError(null);
 
     // Update Firestore to add this participant to revealedParticipants
-    const ref = doc(db, "lotteries", publicId!);
+    const ref = doc(db, "lotteries", id);
     await updateDoc(ref, {
       revealedParticipants: arrayUnion(name)
     });
 
-    // Update local state to reflect the change
+    // Update local state
     setLottery({
       ...lottery,
       revealedParticipants: [...(lottery.revealedParticipants ?? []), name]
     });
   }
 
-  if (!lottery && !error) return <p>Loading...</p>;
+  if (loading) return <p>Loading...</p>;
   if (error) return <p>{error}</p>;
+  if (!lottery) return <p>Lottery not found.</p>;
 
-  if (lottery?.status === "draft") {
+  if (lottery.status === "draft") {
     return <p>This lottery is currently in draft mode and not published yet.</p>;
   }
 
   return (
     <div>
-      <h1>{lottery?.name} ({lottery?.year}) Lottery</h1>
+      <h1>{lottery.name} ({lottery.year}) Lottery</h1>
       <p>Enter your name to see who you got (one-time only):</p>
       <form onSubmit={handleCheck}>
         <input 

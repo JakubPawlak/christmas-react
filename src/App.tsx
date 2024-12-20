@@ -1,19 +1,38 @@
+// App.tsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import SignUp from "./pages/SignUp";
-import SignIn from "./pages/SignIn";
-import Dashboard from "./pages/Dashboard";
+import { useAuth } from "./hooks/useAuth";
+import DashboardLayout from "./components/layout/DashboardLayout";
+import SignIn from "./pages/Auth/SignIn";
+import AllLotteriesPage from "./pages/Dashboard/AllLotteriesPage";
+import CreateLotteryPage from "./pages/Dashboard/CreateLotteryPage";
+import EditLotteryPage from "./pages/Dashboard/EditLotteryPage";
+import CopyLotteryPage from "./pages/Dashboard/CopyLotteryPage";
 import LotteryPage from "./pages/LotteryPage";
-import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <p>Loading...</p>;
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<div><a href="/dashboard">Go to Dashboard</a></div>} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/l/:publicId" element={<LotteryPage />} />
+        {/* Public lottery page does not require auth */}
+        <Route path="/l/:id" element={<LotteryPage />} />
+
+        {/* Auth-protected dashboard */}
+        {user ? (
+          <Route element={<DashboardLayout />}>
+            <Route path="/dashboard" element={<AllLotteriesPage />} />
+            <Route path="/dashboard/create" element={<CreateLotteryPage />} />
+            <Route path="/dashboard/edit/:id" element={<EditLotteryPage />} />
+            <Route path="/dashboard/copy/:id" element={<CopyLotteryPage />} />
+            <Route path="*" element={<AllLotteriesPage />} />
+          </Route>
+        ) : (
+          // If not logged in, show SignIn as default
+          <Route path="*" element={<SignIn />} />
+        )}
       </Routes>
     </Router>
   );
